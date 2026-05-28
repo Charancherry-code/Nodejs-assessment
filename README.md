@@ -2,6 +2,25 @@
 
 A backend service that analyzes a GitHub user profile via the public GitHub REST API and stores the resulting insights in MySQL. Built with **Node.js**, **Express.js**, **MySQL**, and the **GitHub API**.
 
+## Live API
+
+- Base URL: **https://nodejs-assessment-production.up.railway.app**
+- Health: https://nodejs-assessment-production.up.railway.app/health
+- Endpoint index: https://nodejs-assessment-production.up.railway.app/
+
+Quick test:
+
+```bash
+curl -X POST https://nodejs-assessment-production.up.railway.app/api/profiles/analyze \
+     -H "Content-Type: application/json" \
+     -d '{"username":"octocat"}'
+
+curl https://nodejs-assessment-production.up.railway.app/api/profiles
+curl https://nodejs-assessment-production.up.railway.app/api/profiles/octocat
+```
+
+Repo: https://github.com/Charancherry-code/Nodejs-assessment
+
 ## Features
 
 - Analyze any public GitHub user by username and persist insights to MySQL.
