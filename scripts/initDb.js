@@ -5,14 +5,44 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 
-const dbName = process.env.DB_NAME || 'github_analyzer';
-
-(async () => {
-  const conn = await mysql.createConnection({
+function resolveDbConfig() {
+  const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
+  if (url) {
+    try {
+      const u = new URL(url);
+      return {
+        host: u.hostname,
+        port: Number(u.port) || 3306,
+        user: decodeURIComponent(u.username),
+        password: decodeURIComponent(u.password),
+        database: u.pathname.replace(/^\//, '') || 'github_analyzer'
+      };
+    } catch {
+      // fall through
+    }
+  }
+  return {
     host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
     port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
     user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-    password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+    password:
+      process.env.DB_PASSWORD ||
+      process.env.MYSQLPASSWORD ||
+      process.env.MYSQL_ROOT_PASSWORD ||
+      '',
+    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer'
+  };
+}
+
+const cfg = resolveDbConfig();
+const dbName = cfg.database;
+
+(async () => {
+  const conn = await mysql.createConnection({
+    host: cfg.host,
+    port: cfg.port,
+    user: cfg.user,
+    password: cfg.password,
     multipleStatements: true,
     ssl: String(process.env.DB_SSL || '').toLowerCase() === 'true'
       ? { minVersion: 'TLSv1.2', rejectUnauthorized: true }

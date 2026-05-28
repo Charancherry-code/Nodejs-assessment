@@ -4,13 +4,44 @@ const mysql = require('mysql2/promise');
 // Set DB_SSL=true in production to require TLS.
 const useSsl = String(process.env.DB_SSL || '').toLowerCase() === 'true';
 
-// Railway's MySQL plugin exposes MYSQL* vars by default - use them as fallbacks.
+/**
+ * Resolve DB connection details from individual DB_* / MYSQL* vars,
+ * or fall back to a full connection URL (MYSQL_URL / DATABASE_URL),
+ * which Railway and most managed providers expose by default.
+ */
+function resolveDbConfig() {
+  const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
+  if (url) {
+    try {
+      const u = new URL(url);
+      return {
+        host: u.hostname,
+        port: Number(u.port) || 3306,
+        user: decodeURIComponent(u.username),
+        password: decodeURIComponent(u.password),
+        database: u.pathname.replace(/^\//, '') || 'github_analyzer'
+      };
+    } catch (err) {
+      console.warn('Could not parse MYSQL_URL/DATABASE_URL, falling back to discrete vars:', err.message);
+    }
+  }
+  return {
+    host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
+    port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
+    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
+    password:
+      process.env.DB_PASSWORD ||
+      process.env.MYSQLPASSWORD ||
+      process.env.MYSQL_ROOT_PASSWORD ||
+      '',
+    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer'
+  };
+}
+
+const dbConfig = resolveDbConfig();
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
-  port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
-  user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-  password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
-  database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer',
+  ...dbConfig,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
