@@ -1,71 +1,19 @@
 const mysql = require('mysql2/promise');
 
-// Enable TLS automatically for managed providers (TiDB Cloud, Aiven, PlanetScale, etc.)
-// Set DB_SSL=true in production to require TLS.
+// Read Railway-style env vars first, then fall back to local DB_* vars (for dev).
+const dbConfig = {
+  host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+  port: Number(process.env.MYSQLPORT || process.env.DB_PORT) || 3306,
+  user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+  database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'github_analyzer'
+};
+
+console.log(
+  `[db] Connecting → host=${dbConfig.host} port=${dbConfig.port} user=${dbConfig.user} db=${dbConfig.database} hasPassword=${dbConfig.password ? 'yes' : 'NO'}`
+);
+
 const useSsl = String(process.env.DB_SSL || '').toLowerCase() === 'true';
-
-// Diagnostic: list which DB-related env vars are present (without printing values).
-const DB_ENV_KEYS = [
-  'MYSQL_URL', 'DATABASE_URL',
-  'MYSQLHOST', 'MYSQLPORT', 'MYSQLUSER', 'MYSQLPASSWORD', 'MYSQLDATABASE', 'MYSQL_ROOT_PASSWORD',
-  'DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'
-];
-const presentDbVars = DB_ENV_KEYS.filter((k) => process.env[k] !== undefined);
-console.log('[db] Detected DB env vars:', presentDbVars.length ? presentDbVars.join(', ') : 'NONE');
-
-/**
- * Resolve DB connection details from individual DB_* / MYSQL* vars,
- * or fall back to a full connection URL (MYSQL_URL / DATABASE_URL),
- * which Railway and most managed providers expose by default.
- *
- * Note: We prefer DISCRETE vars over the URL because Railway-generated
- * passwords can contain characters that break URL parsing.
- */
-function resolveDbConfig() {
-  const discreteHost = process.env.DB_HOST || process.env.MYSQLHOST;
-  const discretePass = process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD;
-
-  if (discreteHost && discretePass) {
-    const cfg = {
-      host: discreteHost,
-      port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
-      user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-      password: discretePass,
-      database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer'
-    };
-    console.log(`[db] Using discrete env vars → host=${cfg.host} port=${cfg.port} user=${cfg.user} db=${cfg.database} hasPassword=${cfg.password ? 'yes' : 'NO'}`);
-    return cfg;
-  }
-
-  const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
-  if (url) {
-    try {
-      const u = new URL(url);
-      console.log(`[db] Using connection URL → host=${u.hostname} port=${u.port || 3306} user=${u.username} db=${u.pathname.replace(/^\//, '')}`);
-      return {
-        host: u.hostname,
-        port: Number(u.port) || 3306,
-        user: decodeURIComponent(u.username),
-        password: decodeURIComponent(u.password),
-        database: u.pathname.replace(/^\//, '') || 'github_analyzer'
-      };
-    } catch (err) {
-      console.warn('Could not parse MYSQL_URL/DATABASE_URL:', err.message);
-    }
-  }
-
-  const cfg = {
-    host: discreteHost || 'localhost',
-    port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
-    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-    password: discretePass || '',
-    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer'
-  };
-  console.log(`[db] Using fallback config → host=${cfg.host} port=${cfg.port} user=${cfg.user} db=${cfg.database} hasPassword=${cfg.password ? 'yes' : 'NO'}`);
-  return cfg;
-}
-
-const dbConfig = resolveDbConfig();
 
 const pool = mysql.createPool({
   ...dbConfig,

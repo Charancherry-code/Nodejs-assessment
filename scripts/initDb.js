@@ -5,37 +5,13 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 
-function resolveDbConfig() {
-  const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
-  if (url) {
-    try {
-      const u = new URL(url);
-      return {
-        host: u.hostname,
-        port: Number(u.port) || 3306,
-        user: decodeURIComponent(u.username),
-        password: decodeURIComponent(u.password),
-        database: u.pathname.replace(/^\//, '') || 'github_analyzer'
-      };
-    } catch {
-      // fall through
-    }
-  }
-  return {
-    host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
-    port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
-    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-    password:
-      process.env.DB_PASSWORD ||
-      process.env.MYSQLPASSWORD ||
-      process.env.MYSQL_ROOT_PASSWORD ||
-      '',
-    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer'
-  };
-}
-
-const cfg = resolveDbConfig();
-const dbName = cfg.database;
+const cfg = {
+  host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+  port: Number(process.env.MYSQLPORT || process.env.DB_PORT) || 3306,
+  user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+  database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'github_analyzer'
+};
 
 (async () => {
   const conn = await mysql.createConnection({
@@ -50,8 +26,8 @@ const dbName = cfg.database;
   });
 
   try {
-    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    await conn.query(`USE \`${dbName}\`;`);
+    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${cfg.database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    await conn.query(`USE \`${cfg.database}\`;`);
     await conn.query(`
       CREATE TABLE IF NOT EXISTS profiles (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -91,7 +67,7 @@ const dbName = cfg.database;
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    console.log(`Database '${dbName}' and table 'profiles' are ready.`);
+    console.log(`Database '${cfg.database}' and table 'profiles' are ready.`);
   } catch (err) {
     console.error('Database initialization failed:', err.message);
     process.exitCode = 1;
