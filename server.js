@@ -13,6 +13,9 @@ const PORT = process.env.PORT || 3000;
     });
   } catch (err) {
     console.error('Failed to start server:', err.message);
+    if (err.code) console.error('  code:', err.code);
+    if (err.errno) console.error('  errno:', err.errno);
+    if (err.sqlState) console.error('  sqlState:', err.sqlState);
     process.exit(1);
   }
 })();
