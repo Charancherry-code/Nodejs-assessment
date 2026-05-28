@@ -14,6 +14,7 @@ function resolveDbConfig() {
   if (url) {
     try {
       const u = new URL(url);
+      console.log(`[db] Using connection URL → host=${u.hostname} port=${u.port || 3306} user=${u.username} db=${u.pathname.replace(/^\//, '')}`);
       return {
         host: u.hostname,
         port: Number(u.port) || 3306,
@@ -25,7 +26,7 @@ function resolveDbConfig() {
       console.warn('Could not parse MYSQL_URL/DATABASE_URL, falling back to discrete vars:', err.message);
     }
   }
-  return {
+  const cfg = {
     host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
     port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
     user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
@@ -36,6 +37,8 @@ function resolveDbConfig() {
       '',
     database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'github_analyzer'
   };
+  console.log(`[db] Using discrete env vars → host=${cfg.host} port=${cfg.port} user=${cfg.user} db=${cfg.database} hasPassword=${cfg.password ? 'yes' : 'NO'}`);
+  return cfg;
 }
 
 const dbConfig = resolveDbConfig();
